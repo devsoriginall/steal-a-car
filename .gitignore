@@ -1,0 +1,10 @@
+# Arquivos gerados pelo "rojo build"
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+sourcemap.json
+
+# Sistema
+.DS_Store
+Thumbs.db

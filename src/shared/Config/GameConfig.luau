@@ -5,6 +5,7 @@ local GameConfig = {
 	GarageCount = 8,
 	StartingSlots = 6,
 	MaxSlots = 18,
+	VipSlotBonus = 4, -- vagas grátis do game pass Vagas VIP
 	SlotBasePrice = 500,
 	SlotPriceGrowth = 2.2,
 
@@ -19,11 +20,13 @@ local GameConfig = {
 	-- Roubo
 	StealHoldDuration = 1.5, -- segundos segurando E para pegar o carro
 	CarryWalkSpeed = 12, -- velocidade de quem está carregando um carro
+	FastEscapeWalkSpeed = 16, -- com o game pass Fuga Rápida
 	NormalWalkSpeed = 16,
 	NewPlayerProtection = 300, -- segundos de garagem imune ao entrar
 
 	-- Trava da garagem
 	LockDuration = 60,
+	TurboLockDuration = 120, -- com o game pass Trava Turbo
 	LockCooldown = 180,
 
 	-- Taco

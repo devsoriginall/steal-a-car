@@ -32,6 +32,14 @@ O progresso só é salvo depois que o jogo é publicado (**File → Publish to R
 - Não dá para roubar uma garagem **trancada** (botão vermelho na entrada, 60s, recarga de 3 min) nem a de quem entrou há menos de **5 minutos**.
 - Para testar sozinho, use **Teste → Clientes e servidores → 2 jogadores → Iniciar**.
 
+## Loja de Robux
+
+Os itens ficam em `src/shared/Config/Products.luau`. Para ativar um item, crie-o em
+**create.roblox.com → seu jogo → Monetização** (Passes ou Produtos de desenvolvedor)
+e coloque o ID dele no campo `id`. Item com `id = 0` aparece como "Em breve".
+
+No Studio, as compras são simuladas: o Roblox mostra a janela de compra, mas não cobra Robux.
+
 ## Estrutura do código
 
 ```
@@ -41,6 +49,7 @@ src/
       Cars.luau        carros: preço, renda, raridade, cor
       Rarities.luau    raridades e chance de aparecer
       Mutations.luau   Dourado ×2, Diamante ×5, Neon ×10
+      Products.luau    itens da loja de Robux (IDs do site do Roblox)
       GameConfig.luau  números gerais (dinheiro inicial, vagas, esteira...)
     Format.luau        formata $1.5K, $2.3M...
     Net.luau           RemoteEvents
@@ -56,9 +65,11 @@ src/
       StealService.luau    roubo: pegar, carregar e entregar carros
       CombatService.luau   taco (derruba o carro de quem está roubando)
       RebirthService.luau  rebirth: zera o progresso por +50% de renda
+      MonetizationService.luau game passes e produtos (Robux)
   client/              -> StarterPlayerScripts.Client
     HUD.client.luau          dinheiro, renda e notificações
     PromptFilter.client.luau mostra cada botão só para quem pode usá-lo
+    Shop.client.luau         loja de Robux
 ```
 
 **Balanceamento:** quase tudo se ajusta em `src/shared/Config/`, sem mexer na lógica.
@@ -69,5 +80,5 @@ src/
 
 - [x] Semana 1: mapa, garagens, esteira, compra, renda por segundo, venda, vagas, save
 - [x] Semana 2a: roubo, taco, trava da garagem, proteção de iniciante, rebirth
-- [ ] Semana 2b: game passes e produtos (Robux)
+- [x] Semana 2b: game passes e produtos (Robux) — falta preencher os IDs em Products.luau
 - [ ] Semana 3: modelos 3D de verdade, sons, polimento, lançamento

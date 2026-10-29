@@ -13,6 +13,7 @@ local ConveyorService = require(Services.ConveyorService)
 local StealService = require(Services.StealService)
 local CombatService = require(Services.CombatService)
 local RebirthService = require(Services.RebirthService)
+local MonetizationService = require(Services.MonetizationService)
 
 local notify = Net.event("Notify")
 
@@ -22,6 +23,7 @@ ConveyorService.Init()
 StealService.Init()
 CombatService.Init()
 RebirthService.Init()
+MonetizationService.Init()
 
 DataService.Start()
 EconomyService.Start()
@@ -37,6 +39,7 @@ local function onPlayerAdded(player: Player)
 
 	EconomyService.Setup(player)
 	CombatService.Setup(player)
+	MonetizationService.Setup(player)
 	if not GarageService.Assign(player) then
 		player:Kick("O servidor está cheio. Tente outro servidor!")
 		return

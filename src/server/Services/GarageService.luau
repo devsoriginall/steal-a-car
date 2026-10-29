@@ -28,6 +28,10 @@ local function formatTime(seconds: number): string
 	return string.format("%d:%02d", seconds // 60, seconds % 60)
 end
 
+local function lockDuration(player: Player?): number
+	return if player and player:GetAttribute("Pass_TurboLock") then GameConfig.TurboLockDuration else GameConfig.LockDuration
+end
+
 -- O material ForceField aparece mesmo com Transparency = 1 (e deixa a tela
 -- preta quando a câmera passa por ele), então ele só é usado com a garagem trancada.
 local function setBarrier(garage, locked: boolean)
@@ -57,7 +61,13 @@ local function updateStatus(garage)
 	local readyAt = garage.lockReadyAt or 0
 	garage.lockPrompt.ObjectText = if readyAt > now
 		then "Recarrega em " .. formatTime(readyAt - now)
-		else GameConfig.LockDuration .. "s"
+		else lockDuration(owner) .. "s"
+end
+
+-- Vagas liberadas, somando as do game pass Vagas VIP.
+local function slotCount(player: Player, data): number
+	local bonus = if player:GetAttribute("Pass_VipSlots") then GameConfig.VipSlotBonus else 0
+	return math.min(GameConfig.MaxSlots, data.slots + bonus)
 end
 
 local function updateSlotPrompt(player: Player)
@@ -66,12 +76,13 @@ local function updateSlotPrompt(player: Player)
 	if not (garage and data) then
 		return
 	end
-	if data.slots >= GameConfig.MaxSlots then
+	local slots = slotCount(player, data)
+	if slots >= GameConfig.MaxSlots then
 		garage.slotPrompt.ActionText = "Garagem completa"
 		garage.slotPrompt.ObjectText = ""
 		garage.slotPrompt.Enabled = false
 	else
-		garage.slotPrompt.ActionText = "Comprar vaga (" .. data.slots + 1 .. "/" .. GameConfig.MaxSlots .. ")"
+		garage.slotPrompt.ActionText = "Comprar vaga (" .. slots + 1 .. "/" .. GameConfig.MaxSlots .. ")"
 		garage.slotPrompt.ObjectText = Format.money(GameConfig.slotPrice(data.slots))
 		garage.slotPrompt.Enabled = true
 	end
@@ -91,7 +102,7 @@ local function updateSlotMarkers(player: Player)
 	local garage = garageOf[player]
 	local data = DataService.Get(player)
 	if garage and data then
-		setSlotMarkers(garage, data.slots)
+		setSlotMarkers(garage, slotCount(player, data))
 	end
 end
 
@@ -256,7 +267,7 @@ function GarageService.FindFreeSlot(player: Player): number?
 	if not data then
 		return nil
 	end
-	for slotIndex = 1, data.slots do
+	for slotIndex = 1, slotCount(player, data) do
 		if not data.cars[tostring(slotIndex)] then
 			return slotIndex
 		end
@@ -272,7 +283,7 @@ function GarageService.AddCar(player: Player, carId: string, mutation: string?, 
 		return nil
 	end
 	local slotIndex = GarageService.FindFreeSlot(player)
-	if preferredSlot and preferredSlot <= data.slots and not data.cars[tostring(preferredSlot)] then
+	if preferredSlot and preferredSlot <= slotCount(player, data) and not data.cars[tostring(preferredSlot)] then
 		slotIndex = preferredSlot
 	end
 	if not slotIndex then
@@ -317,10 +328,31 @@ function GarageService.Lock(player: Player)
 		notify:FireClient(player, "A trava está recarregando: " .. formatTime(garage.lockReadyAt - now), "error")
 		return
 	end
-	garage.lockedUntil = now + GameConfig.LockDuration
+	local duration = lockDuration(player)
+	garage.lockedUntil = now + duration
 	garage.lockReadyAt = now + GameConfig.LockCooldown
 	updateStatus(garage)
-	notify:FireClient(player, "Garagem trancada por " .. GameConfig.LockDuration .. " segundos!")
+	notify:FireClient(player, "Garagem trancada por " .. duration .. " segundos!")
+end
+
+-- Escudo comprado na loja: soma tempo de proteção contra roubo.
+function GarageService.AddProtection(player: Player, seconds: number)
+	local garage = garageOf[player]
+	if not garage then
+		return
+	end
+	garage.protectedUntil = math.max(os.clock(), garage.protectedUntil or 0) + seconds
+	updateStatus(garage)
+end
+
+-- Chamado quando o jogador ganha um game pass que muda a garagem.
+function GarageService.Refresh(player: Player)
+	updateSlotMarkers(player)
+	updateSlotPrompt(player)
+	local garage = garageOf[player]
+	if garage then
+		updateStatus(garage)
+	end
 end
 
 -- Usado pelo rebirth: limpa todos os carros e volta às vagas iniciais.
@@ -363,7 +395,7 @@ end
 
 function GarageService.BuySlot(player: Player)
 	local data = DataService.Get(player)
-	if not data or data.slots >= GameConfig.MaxSlots then
+	if not data or slotCount(player, data) >= GameConfig.MaxSlots then
 		return
 	end
 	local price = GameConfig.slotPrice(data.slots)
@@ -374,7 +406,7 @@ function GarageService.BuySlot(player: Player)
 	data.slots += 1
 	updateSlotMarkers(player)
 	updateSlotPrompt(player)
-	notify:FireClient(player, "Nova vaga liberada! (" .. data.slots .. "/" .. GameConfig.MaxSlots .. ")")
+	notify:FireClient(player, "Nova vaga liberada! (" .. slotCount(player, data) .. "/" .. GameConfig.MaxSlots .. ")")
 end
 
 return GarageService

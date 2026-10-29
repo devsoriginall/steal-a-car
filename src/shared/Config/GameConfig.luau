@@ -14,6 +14,9 @@ local GameConfig = {
 	ConveyorSpeed = 8, -- studs por segundo
 	ConveyorSpawnInterval = 2.5, -- segundos entre carros
 
+	-- Só no Studio: mostra os 20 carros enfileirados perto da esteira, para conferir o visual
+	StudioShowroom = true,
+
 	-- Venda devolve esta fração do preço
 	SellRefund = 0.5,
 

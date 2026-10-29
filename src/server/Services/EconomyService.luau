@@ -41,7 +41,8 @@ function EconomyService.RecomputeIncome(player: Player)
 			total += car.income * Mutations.multiplier(owned.m)
 		end
 	end
-	entry.income = math.floor(total * GameConfig.rebirthMultiplier(data.rebirths))
+	local passMultiplier = if player:GetAttribute("Pass_DoubleMoney") then 2 else 1
+	entry.income = math.floor(total * GameConfig.rebirthMultiplier(data.rebirths) * passMultiplier)
 	publish(player)
 end
 

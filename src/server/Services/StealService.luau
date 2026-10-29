@@ -163,7 +163,8 @@ local function tryStart(thief: Player, owner: Player, slotIndex: number)
 	}
 	carrying[thief] = entry
 	thief:SetAttribute("Carrying", record.id)
-	setWalkSpeed(thief, GameConfig.CarryWalkSpeed)
+	local speed = if thief:GetAttribute("Pass_FastEscape") then GameConfig.FastEscapeWalkSpeed else GameConfig.CarryWalkSpeed
+	setWalkSpeed(thief, speed)
 
 	table.insert(entry.connections, humanoid.Died:Connect(function()
 		StealService.Drop(thief)

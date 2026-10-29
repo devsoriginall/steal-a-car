@@ -113,10 +113,29 @@ local function spawnCar()
 	end
 end
 
+-- Vitrine com todos os carros (só no Studio), em duas fileiras ao lado da esteira.
+local function buildShowroom()
+	local showroom = Instance.new("Folder")
+	showroom.Name = "StudioShowroom"
+	showroom.Parent = Workspace
+	local perRow = 10
+	for index, car in Cars.list do
+		local row = if index <= perRow then 1 else -1
+		local column = (index - 1) % perRow
+		local model = CarFactory.build(car.id, nil, true)
+		model:PivotTo(CFrame.new(-58.5 + column * 13, 0, row * 30))
+		model.Parent = showroom
+	end
+end
+
 function ConveyorService.Init()
 	folder = Instance.new("Folder")
 	folder.Name = "ConveyorCars"
 	folder.Parent = Workspace
+
+	if RunService:IsStudio() and GameConfig.StudioShowroom then
+		buildShowroom()
+	end
 end
 
 function ConveyorService.Start()

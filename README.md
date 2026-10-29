@@ -40,6 +40,21 @@ e coloque o ID dele no campo `id`. Item com `id = 0` aparece como "Em breve".
 
 No Studio, as compras são simuladas: o Roblox mostra a janela de compra, mas não cobra Robux.
 
+## Usar modelos 3D prontos
+
+Cada carro é gerado por código (`CarStyles.luau`), mas dá para trocar qualquer um
+por um modelo pronto:
+
+1. No Studio, crie uma pasta chamada **CarModels** dentro de **ServerStorage**.
+2. Pegue um modelo de carro (Caixa de ferramentas → Modelos, ou um modelo comprado/encomendado)
+   e coloque dentro da pasta.
+3. Renomeie o modelo para o **id** do carro em `Cars.luau` (por exemplo `fuscao`, `supercarro`, `formula`).
+4. Salve o jogo (**Arquivo → Salvar na Roblox**). O Rojo não mexe no ServerStorage, então o modelo fica guardado no jogo.
+
+O jogo apaga qualquer script do modelo, desliga a colisão e ajusta o tamanho e a direção
+automaticamente. Se o carro aparecer de ré, adicione ao modelo o atributo `Flip` (booleano) marcado.
+Para as mutações pintarem só a lataria, marque as peças da lataria com o atributo `Paint`.
+
 ## Estrutura do código
 
 ```
@@ -50,12 +65,13 @@ src/
       Rarities.luau    raridades e chance de aparecer
       Mutations.luau   Dourado ×2, Diamante ×5, Neon ×10
       Products.luau    itens da loja de Robux (IDs do site do Roblox)
+      CarStyles.luau   formato 3D de cada carro (tamanho, cabine, detalhes)
       GameConfig.luau  números gerais (dinheiro inicial, vagas, esteira...)
     Format.luau        formata $1.5K, $2.3M...
     Net.luau           RemoteEvents
   server/              -> ServerScriptService.Server
     Main.server.luau   inicia tudo e cuida da entrada e saída de jogadores
-    Modules/CarFactory.luau     monta o modelo 3D provisório de cada carro
+    Modules/CarFactory.luau     monta o modelo 3D de cada carro a partir do CarStyles
     Services/
       DataService.luau     save/load no DataStore
       MapService.luau      gera chão, esteira e 8 garagens

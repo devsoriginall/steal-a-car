@@ -8,3 +8,6 @@ sourcemap.json
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Criado pela extensão Rojo do VS Code (o projeto usa rokit.toml)
+aftman.toml

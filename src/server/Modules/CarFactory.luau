@@ -2,7 +2,12 @@
 -- formato definido em Config/CarStyles.luau. Cada carro tem silhueta própria,
 -- faróis, rodas com aro e detalhes (aerofólio, faixas, foguete...).
 -- Raridades altas e mutações ganham brilho e partículas.
+--
+-- Modelos prontos: se existir ServerStorage.CarModels.<id do carro> (por
+-- exemplo ServerStorage.CarModels.fuscao), ele é usado no lugar do modelo
+-- gerado. Veja "Usar modelos 3D prontos" no README.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Cars = require(Shared.Config.Cars)
@@ -409,6 +414,82 @@ function EXTRAS.hoverJets(b, s, info, color, glow)
 	end
 end
 
+-- Tamanho máximo de um modelo pronto (para caber na vaga da garagem).
+local CUSTOM_MAX_LENGTH = 11.5
+local CUSTOM_MAX_WIDTH = 5.8
+
+-- Copia um modelo pronto de ServerStorage.CarModels, remove scripts, deixa a
+-- frente virada para +X e ajusta o tamanho para caber na vaga.
+local function buildCustom(b, template: Model)
+	local clone = template:Clone()
+	for _, descendant in clone:GetDescendants() do
+		-- Modelos grátis podem trazer scripts (às vezes maliciosos): nunca rodamos nenhum.
+		if descendant:IsA("LuaSourceContainer") then
+			descendant:Destroy()
+		end
+	end
+
+	local center, size = clone:GetBoundingBox()
+	if size.Magnitude < 0.1 then
+		return nil
+	end
+
+	-- O lado mais comprido vira o comprimento (eixo X).
+	local rotation = CFrame.new()
+	local length, width = size.X, size.Z
+	if size.Z > size.X then
+		rotation = CFrame.Angles(0, math.rad(90), 0)
+		length, width = size.Z, size.X
+	end
+	-- Se o carro ficar de ré, marque o modelo com o atributo Flip = true.
+	if template:GetAttribute("Flip") then
+		rotation *= CFrame.Angles(0, math.pi, 0)
+	end
+
+	clone.WorldPivot = center
+	clone:ScaleTo(clone:GetScale() * math.min(CUSTOM_MAX_LENGTH / length, CUSTOM_MAX_WIDTH / width))
+	local _, scaledSize = clone:GetBoundingBox()
+	clone:PivotTo(CFrame.new(0, scaledSize.Y / 2, 0) * rotation)
+
+	local body, bodyVolume = nil, 0
+	local tagged = false
+	for _, part in clone:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanTouch = false
+			local volume = part.Size.X * part.Size.Y * part.Size.Z
+			if volume > bodyVolume then
+				body, bodyVolume = part, volume
+			end
+			-- Peças com o atributo Paint = true recebem a cor das mutações.
+			if part:GetAttribute("Paint") then
+				table.insert(b.paint, part)
+				tagged = true
+			end
+		end
+	end
+	if not body then
+		return nil
+	end
+	if not tagged then
+		table.insert(b.paint, body)
+	end
+
+	for _, child in clone:GetChildren() do
+		child.Parent = b.model
+	end
+	clone:Destroy()
+
+	return {
+		body = body,
+		bottom = 0.5,
+		top = scaledSize.Y * 0.6,
+		roofTop = scaledSize.Y,
+		custom = true,
+	}
+end
+
 -- Retorna um Model com o pivô no chão, centralizado, com a frente para +X.
 function CarFactory.build(carId: string, mutationName: string?, showPrice: boolean?): Model
 	local car = Cars.get(carId)
@@ -426,17 +507,23 @@ function CarFactory.build(carId: string, mutationName: string?, showPrice: boole
 	model.Name = car.name
 	local b = Builder.new(model)
 
-	local info = if style.shape == "formula" then buildFormula(b, style, car.color) else buildStandard(b, style, car.color)
-	for _, extra in style.extras do
-		local addExtra = EXTRAS[extra]
-		if addExtra then
-			addExtra(b, style, info, car.color, rarity.color)
-		end
-	end
+	local customFolder = ServerStorage:FindFirstChild("CarModels")
+	local template = customFolder and customFolder:FindFirstChild(carId)
+	local info = if template and template:IsA("Model") then buildCustom(b, template) else nil
 
-	-- Peças das extras sem cor definida (Color3.new()) herdam a cor do carro.
-	for _, part in b.paint do
-		part.Color = car.color
+	if not info then
+		info = if style.shape == "formula" then buildFormula(b, style, car.color) else buildStandard(b, style, car.color)
+		for _, extra in style.extras do
+			local addExtra = EXTRAS[extra]
+			if addExtra then
+				addExtra(b, style, info, car.color, rarity.color)
+			end
+		end
+
+		-- Peças das extras sem cor definida (Color3.new()) herdam a cor do carro.
+		for _, part in b.paint do
+			part.Color = car.color
+		end
 	end
 
 	-- Mutação: pinta a carroceria e adiciona brilho

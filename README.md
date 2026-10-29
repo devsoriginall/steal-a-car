@@ -50,12 +50,13 @@ src/
       Rarities.luau    raridades e chance de aparecer
       Mutations.luau   Dourado ×2, Diamante ×5, Neon ×10
       Products.luau    itens da loja de Robux (IDs do site do Roblox)
+      CarStyles.luau   formato 3D de cada carro (tamanho, cabine, detalhes)
       GameConfig.luau  números gerais (dinheiro inicial, vagas, esteira...)
     Format.luau        formata $1.5K, $2.3M...
     Net.luau           RemoteEvents
   server/              -> ServerScriptService.Server
     Main.server.luau   inicia tudo e cuida da entrada e saída de jogadores
-    Modules/CarFactory.luau     monta o modelo 3D provisório de cada carro
+    Modules/CarFactory.luau     monta o modelo 3D de cada carro a partir do CarStyles
     Services/
       DataService.luau     save/load no DataStore
       MapService.luau      gera chão, esteira e 8 garagens

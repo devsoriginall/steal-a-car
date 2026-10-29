@@ -10,16 +10,24 @@ local MapService = require(Services.MapService)
 local EconomyService = require(Services.EconomyService)
 local GarageService = require(Services.GarageService)
 local ConveyorService = require(Services.ConveyorService)
+local StealService = require(Services.StealService)
+local CombatService = require(Services.CombatService)
+local RebirthService = require(Services.RebirthService)
 
 local notify = Net.event("Notify")
 
 DataService.Init()
 MapService.Init()
 ConveyorService.Init()
+StealService.Init()
+CombatService.Init()
+RebirthService.Init()
 
 DataService.Start()
 EconomyService.Start()
+GarageService.Start()
 ConveyorService.Start()
+StealService.Start()
 
 local function onPlayerAdded(player: Player)
 	local data = DataService.Load(player)
@@ -28,6 +36,7 @@ local function onPlayerAdded(player: Player)
 	end
 
 	EconomyService.Setup(player)
+	CombatService.Setup(player)
 	if not GarageService.Assign(player) then
 		player:Kick("O servidor está cheio. Tente outro servidor!")
 		return
@@ -37,6 +46,8 @@ local function onPlayerAdded(player: Player)
 end
 
 local function onPlayerRemoving(player: Player)
+	StealService.OnPlayerRemoving(player)
+	CombatService.Remove(player)
 	GarageService.Release(player)
 	EconomyService.Remove(player)
 	DataService.Release(player)

@@ -1,6 +1,7 @@
--- Esconde os botões (ProximityPrompts) marcados como "OwnerOnly" quando a
--- garagem não é sua, por exemplo "Vender" e "Comprar vaga".
--- O servidor também confere o dono; isto aqui é só visual.
+-- Esconde os botões (ProximityPrompts) conforme o dono da garagem:
+-- "OwnerOnly" (Vender, Comprar vaga, Trancar) só aparece para o dono, e
+-- "OthersOnly" (Roubar) só aparece para os outros jogadores.
+-- O servidor também confere tudo; isto aqui é só visual.
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
@@ -9,11 +10,15 @@ local originalDistance = {} -- [ProximityPrompt] = number
 
 local function apply(prompt: ProximityPrompt)
 	local isMine = prompt:GetAttribute("OwnerUserId") == player.UserId
-	prompt.MaxActivationDistance = if isMine then originalDistance[prompt] else 0
+	local visible = if prompt:GetAttribute("OwnerOnly") then isMine else not isMine
+	prompt.MaxActivationDistance = if visible then originalDistance[prompt] else 0
 end
 
 local function track(instance: Instance)
-	if not instance:IsA("ProximityPrompt") or not instance:GetAttribute("OwnerOnly") then
+	if not instance:IsA("ProximityPrompt") then
+		return
+	end
+	if not (instance:GetAttribute("OwnerOnly") or instance:GetAttribute("OthersOnly")) then
 		return
 	end
 	originalDistance[instance] = instance.MaxActivationDistance

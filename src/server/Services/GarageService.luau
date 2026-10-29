@@ -1,5 +1,5 @@
 -- Atribui uma garagem a cada jogador, mostra os carros nas vagas,
--- permite vender carros e comprar vagas novas.
+-- permite vender carros, comprar vagas e trancar a garagem.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -19,6 +19,46 @@ local notify = Net.event("Notify")
 
 local garageOf = {} -- [Player] = garage (de MapService.Garages)
 local connections = {} -- [Player] = { RBXScriptConnection }
+
+-- Definido pelo StealService: chamado quando alguém tenta roubar um carro.
+GarageService.OnStealRequested = nil :: ((thief: Player, owner: Player, slotIndex: number) -> ())?
+
+local function formatTime(seconds: number): string
+	seconds = math.max(0, math.ceil(seconds))
+	return string.format("%d:%02d", seconds // 60, seconds % 60)
+end
+
+-- O material ForceField aparece mesmo com Transparency = 1 (e deixa a tela
+-- preta quando a câmera passa por ele), então ele só é usado com a garagem trancada.
+local function setBarrier(garage, locked: boolean)
+	garage.barrier.Material = if locked then Enum.Material.ForceField else Enum.Material.SmoothPlastic
+	garage.barrier.Transparency = if locked then 0 else 1
+end
+
+-- Atualiza a placa, o campo de força e o botão de trancar de uma garagem.
+local function updateStatus(garage)
+	local owner = garage.owner
+	if not owner then
+		garage.ownerLabel.Text = "Garagem livre"
+		setBarrier(garage, false)
+		return
+	end
+
+	local now = os.clock()
+	local status = ""
+	if (garage.lockedUntil or 0) > now then
+		status = "  🔒 " .. formatTime(garage.lockedUntil - now)
+	elseif (garage.protectedUntil or 0) > now then
+		status = "  🛡️ " .. formatTime(garage.protectedUntil - now)
+	end
+	garage.ownerLabel.Text = "Garagem de " .. owner.DisplayName .. status
+	setBarrier(garage, (garage.lockedUntil or 0) > now)
+
+	local readyAt = garage.lockReadyAt or 0
+	garage.lockPrompt.ObjectText = if readyAt > now
+		then "Recarrega em " .. formatTime(readyAt - now)
+		else GameConfig.LockDuration .. "s"
+end
 
 local function updateSlotPrompt(player: Player)
 	local garage = garageOf[player]
@@ -97,6 +137,24 @@ local function renderSlot(player: Player, slotIndex: number)
 		end
 	end)
 
+	-- Botão de roubar, que só os outros jogadores veem
+	local stealPrompt = Instance.new("ProximityPrompt")
+	stealPrompt.Name = "StealPrompt"
+	stealPrompt.ActionText = "Roubar"
+	stealPrompt.ObjectText = car.name
+	stealPrompt.HoldDuration = GameConfig.StealHoldDuration
+	stealPrompt.MaxActivationDistance = 8
+	stealPrompt.RequiresLineOfSight = false
+	stealPrompt:SetAttribute("OthersOnly", true)
+	stealPrompt:SetAttribute("OwnerUserId", player.UserId)
+	stealPrompt.Parent = model.PrimaryPart
+
+	stealPrompt.Triggered:Connect(function(thief)
+		if thief ~= player and GarageService.OnStealRequested then
+			GarageService.OnStealRequested(thief, player, slotIndex)
+		end
+	end)
+
 	model.Parent = garage.carsFolder
 end
 
@@ -138,15 +196,24 @@ function GarageService.Assign(player: Player): boolean
 	end
 
 	free.owner = player
+	free.protectedUntil = os.clock() + GameConfig.NewPlayerProtection
+	free.lockedUntil = 0
+	free.lockReadyAt = 0
 	garageOf[player] = free
 	free.model:SetAttribute("OwnerUserId", player.UserId)
 	free.slotPrompt:SetAttribute("OwnerUserId", player.UserId)
-	free.ownerLabel.Text = "Garagem de " .. player.DisplayName
+	free.lockPrompt:SetAttribute("OwnerUserId", player.UserId)
+	updateStatus(free)
 
 	connections[player] = {
 		free.slotPrompt.Triggered:Connect(function(who)
 			if who == player then
 				GarageService.BuySlot(player)
+			end
+		end),
+		free.lockPrompt.Triggered:Connect(function(who)
+			if who == player then
+				GarageService.Lock(player)
 			end
 		end),
 		player.CharacterAdded:Connect(function(character)
@@ -173,9 +240,13 @@ function GarageService.Release(player: Player)
 	end
 
 	garage.owner = nil
+	garage.lockedUntil = 0
+	garage.lockReadyAt = 0
+	garage.protectedUntil = 0
 	garage.model:SetAttribute("OwnerUserId", nil)
 	garage.slotPrompt:SetAttribute("OwnerUserId", nil)
-	garage.ownerLabel.Text = "Garagem livre"
+	garage.lockPrompt:SetAttribute("OwnerUserId", nil)
+	updateStatus(garage)
 	garage.carsFolder:ClearAllChildren()
 	setSlotMarkers(garage, GameConfig.StartingSlots)
 end
@@ -193,17 +264,86 @@ function GarageService.FindFreeSlot(player: Player): number?
 	return nil
 end
 
--- Coloca um carro na primeira vaga livre. Retorna a vaga, ou nil se estiver cheio.
-function GarageService.AddCar(player: Player, carId: string, mutation: string?): number?
+-- Coloca um carro numa vaga livre (de preferência a indicada).
+-- Retorna a vaga usada, ou nil se a garagem estiver cheia.
+function GarageService.AddCar(player: Player, carId: string, mutation: string?, preferredSlot: number?): number?
 	local data = DataService.Get(player)
+	if not data then
+		return nil
+	end
 	local slotIndex = GarageService.FindFreeSlot(player)
-	if not (data and slotIndex) then
+	if preferredSlot and preferredSlot <= data.slots and not data.cars[tostring(preferredSlot)] then
+		slotIndex = preferredSlot
+	end
+	if not slotIndex then
 		return nil
 	end
 	data.cars[tostring(slotIndex)] = { id = carId, m = mutation }
 	renderSlot(player, slotIndex)
 	EconomyService.RecomputeIncome(player)
 	return slotIndex
+end
+
+-- Tira um carro da garagem (usado no roubo). Retorna { id, m } ou nil.
+function GarageService.TakeCar(player: Player, slotIndex: number)
+	local data = DataService.Get(player)
+	local owned = data and data.cars[tostring(slotIndex)]
+	if not owned then
+		return nil
+	end
+	data.cars[tostring(slotIndex)] = nil
+	renderSlot(player, slotIndex)
+	EconomyService.RecomputeIncome(player)
+	return owned
+end
+
+-- Garagem trancada ou com proteção de iniciante não pode ser roubada.
+function GarageService.IsProtected(player: Player): boolean
+	local garage = garageOf[player]
+	if not garage then
+		return true
+	end
+	local now = os.clock()
+	return (garage.lockedUntil or 0) > now or (garage.protectedUntil or 0) > now
+end
+
+function GarageService.Lock(player: Player)
+	local garage = garageOf[player]
+	if not garage then
+		return
+	end
+	local now = os.clock()
+	if (garage.lockReadyAt or 0) > now then
+		notify:FireClient(player, "A trava está recarregando: " .. formatTime(garage.lockReadyAt - now), "error")
+		return
+	end
+	garage.lockedUntil = now + GameConfig.LockDuration
+	garage.lockReadyAt = now + GameConfig.LockCooldown
+	updateStatus(garage)
+	notify:FireClient(player, "Garagem trancada por " .. GameConfig.LockDuration .. " segundos!")
+end
+
+-- Usado pelo rebirth: limpa todos os carros e volta às vagas iniciais.
+function GarageService.Reset(player: Player)
+	local data = DataService.Get(player)
+	if not data then
+		return
+	end
+	data.cars = {}
+	data.slots = GameConfig.StartingSlots
+	renderAll(player)
+	EconomyService.RecomputeIncome(player)
+end
+
+function GarageService.Start()
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			for _, garage in MapService.Garages do
+				updateStatus(garage)
+			end
+		end
+	end)
 end
 
 function GarageService.SellCar(player: Player, slotIndex: number)

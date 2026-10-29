@@ -24,6 +24,14 @@ O progresso só é salvo depois que o jogo é publicado (**File → Publish to R
 ### Antes de lançar
 - **Game Settings → Places → Max Players: 8** (uma garagem por jogador).
 
+## Como funciona o roubo
+
+- Na garagem de outro jogador, segure **E** em um carro para pegá-lo. Uma miniatura fica sobre sua cabeça e você anda mais devagar.
+- Entre na **sua** garagem para ficar com o carro.
+- Se alguém te acertar com o **Taco** (tecla 1 para equipar, clique para bater), se você morrer ou sair do jogo, o carro volta para o dono.
+- Não dá para roubar uma garagem **trancada** (botão vermelho na entrada, 60s, recarga de 3 min) nem a de quem entrou há menos de **5 minutos**.
+- Para testar sozinho, use **Teste → Clientes e servidores → 2 jogadores → Iniciar**.
+
 ## Estrutura do código
 
 ```
@@ -45,9 +53,12 @@ src/
       EconomyService.luau  dinheiro, renda por segundo, placar
       GarageService.luau   vagas, carros na garagem, vender, comprar vaga
       ConveyorService.luau carros na esteira e compra
+      StealService.luau    roubo: pegar, carregar e entregar carros
+      CombatService.luau   taco (derruba o carro de quem está roubando)
+      RebirthService.luau  rebirth: zera o progresso por +50% de renda
   client/              -> StarterPlayerScripts.Client
     HUD.client.luau          dinheiro, renda e notificações
-    PromptFilter.client.luau esconde botões de garagens que não são suas
+    PromptFilter.client.luau mostra cada botão só para quem pode usá-lo
 ```
 
 **Balanceamento:** quase tudo se ajusta em `src/shared/Config/`, sem mexer na lógica.
@@ -57,5 +68,6 @@ src/
 ## Status
 
 - [x] Semana 1: mapa, garagens, esteira, compra, renda por segundo, venda, vagas, save
-- [ ] Semana 2: roubo, trava da garagem, rebirth, game passes e produtos
+- [x] Semana 2a: roubo, taco, trava da garagem, proteção de iniciante, rebirth
+- [ ] Semana 2b: game passes e produtos (Robux)
 - [ ] Semana 3: modelos 3D de verdade, sons, polimento, lançamento

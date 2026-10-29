@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Cars = require(Shared.Config.Cars)
+local GameConfig = require(Shared.Config.GameConfig)
 local Mutations = require(Shared.Config.Mutations)
 local Format = require(Shared.Format)
 
@@ -22,6 +23,7 @@ local function publish(player: Player)
 	end
 	player:SetAttribute("Money", data.money)
 	player:SetAttribute("Income", entry.income)
+	player:SetAttribute("Rebirths", data.rebirths)
 	entry.leaderstat.Value = Format.money(data.money)
 end
 
@@ -39,7 +41,7 @@ function EconomyService.RecomputeIncome(player: Player)
 			total += car.income * Mutations.multiplier(owned.m)
 		end
 	end
-	entry.income = total
+	entry.income = math.floor(total * GameConfig.rebirthMultiplier(data.rebirths))
 	publish(player)
 end
 

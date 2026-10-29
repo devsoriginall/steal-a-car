@@ -28,12 +28,19 @@ local function formatTime(seconds: number): string
 	return string.format("%d:%02d", seconds // 60, seconds % 60)
 end
 
+-- O material ForceField aparece mesmo com Transparency = 1 (e deixa a tela
+-- preta quando a câmera passa por ele), então ele só é usado com a garagem trancada.
+local function setBarrier(garage, locked: boolean)
+	garage.barrier.Material = if locked then Enum.Material.ForceField else Enum.Material.SmoothPlastic
+	garage.barrier.Transparency = if locked then 0 else 1
+end
+
 -- Atualiza a placa, o campo de força e o botão de trancar de uma garagem.
 local function updateStatus(garage)
 	local owner = garage.owner
 	if not owner then
 		garage.ownerLabel.Text = "Garagem livre"
-		garage.barrier.Transparency = 1
+		setBarrier(garage, false)
 		return
 	end
 
@@ -45,7 +52,7 @@ local function updateStatus(garage)
 		status = "  🛡️ " .. formatTime(garage.protectedUntil - now)
 	end
 	garage.ownerLabel.Text = "Garagem de " .. owner.DisplayName .. status
-	garage.barrier.Transparency = if (garage.lockedUntil or 0) > now then 0.4 else 1
+	setBarrier(garage, (garage.lockedUntil or 0) > now)
 
 	local readyAt = garage.lockReadyAt or 0
 	garage.lockPrompt.ObjectText = if readyAt > now

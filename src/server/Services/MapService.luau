@@ -105,7 +105,7 @@ local function buildGarage(mapFolder: Folder, index: number)
 	lockPrompt.Parent = lockButton
 
 	-- Campo de força que aparece na entrada quando a garagem está trancada
-	local barrier = makePart(model, "LockBarrier", Vector3.new(GARAGE_WIDTH, WALL_HEIGHT, 1), cframe * CFrame.new(0, WALL_HEIGHT / 2 + 1, -GARAGE_DEPTH / 2), Color3.fromRGB(255, 60, 60), Enum.Material.ForceField)
+	local barrier = makePart(model, "LockBarrier", Vector3.new(GARAGE_WIDTH, WALL_HEIGHT, 1), cframe * CFrame.new(0, WALL_HEIGHT / 2 + 1, -GARAGE_DEPTH / 2), Color3.fromRGB(255, 60, 60), Enum.Material.SmoothPlastic)
 	barrier.CanCollide = false
 	barrier.CanQuery = false
 	barrier.Transparency = 1

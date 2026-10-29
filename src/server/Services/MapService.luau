@@ -92,6 +92,24 @@ local function buildGarage(mapFolder: Folder, index: number)
 	prompt:SetAttribute("OwnerOnly", true)
 	prompt.Parent = button
 
+	-- Botão de trancar a garagem, no canto da frente
+	local lockButton = makePart(model, "LockButton", Vector3.new(2, 3, 2), cframe * CFrame.new(GARAGE_WIDTH / 2 - 2, 2.5, -GARAGE_DEPTH / 2 + 2), Color3.fromRGB(220, 50, 50), Enum.Material.Neon)
+	local lockPrompt = Instance.new("ProximityPrompt")
+	lockPrompt.Name = "LockPrompt"
+	lockPrompt.ActionText = "Trancar garagem"
+	lockPrompt.ObjectText = GameConfig.LockDuration .. "s"
+	lockPrompt.HoldDuration = 0.3
+	lockPrompt.MaxActivationDistance = 10
+	lockPrompt.RequiresLineOfSight = false
+	lockPrompt:SetAttribute("OwnerOnly", true)
+	lockPrompt.Parent = lockButton
+
+	-- Campo de força que aparece na entrada quando a garagem está trancada
+	local barrier = makePart(model, "LockBarrier", Vector3.new(GARAGE_WIDTH, WALL_HEIGHT, 1), cframe * CFrame.new(0, WALL_HEIGHT / 2 + 1, -GARAGE_DEPTH / 2), Color3.fromRGB(255, 60, 60), Enum.Material.ForceField)
+	barrier.CanCollide = false
+	barrier.CanQuery = false
+	barrier.Transparency = 1
+
 	-- Marcações das vagas no chão
 	local slots = {}
 	local slotsFolder = Instance.new("Folder")
@@ -119,8 +137,20 @@ local function buildGarage(mapFolder: Folder, index: number)
 		carsFolder = carsFolder,
 		ownerLabel = label,
 		slotPrompt = prompt,
+		lockPrompt = lockPrompt,
+		barrier = barrier,
+		width = GARAGE_WIDTH,
+		depth = GARAGE_DEPTH,
 		spawnCFrame = cframe * CFrame.new(0, 4, -GARAGE_DEPTH / 2 + 3) * CFrame.Angles(0, math.pi, 0),
 	})
+end
+
+-- Diz se uma posição do mundo está dentro da área de uma garagem.
+function MapService.IsInsideGarage(garage, position: Vector3): boolean
+	local localPosition = garage.cframe:PointToObjectSpace(position)
+	return math.abs(localPosition.X) <= garage.width / 2
+		and math.abs(localPosition.Z) <= garage.depth / 2
+		and localPosition.Y < 20
 end
 
 function MapService.Init()

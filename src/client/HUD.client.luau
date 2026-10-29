@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local GameConfig = require(Shared.Config.GameConfig)
 local Format = require(Shared.Format)
 local Net = require(Shared.Net)
 
@@ -50,13 +51,60 @@ incomeLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
 incomeLabel.Text = "+$0/s"
 incomeLabel.Parent = panel
 
+-- Botão de rebirth (acima do painel de dinheiro)
+local rebirthButton = Instance.new("TextButton")
+rebirthButton.Name = "Rebirth"
+rebirthButton.AnchorPoint = Vector2.new(0, 1)
+rebirthButton.Position = UDim2.new(0, 16, 1, -104)
+rebirthButton.Size = UDim2.fromOffset(240, 44)
+rebirthButton.BackgroundColor3 = Color3.fromRGB(120, 60, 200)
+rebirthButton.AutoButtonColor = true
+rebirthButton.Font = Enum.Font.GothamBold
+rebirthButton.TextScaled = true
+rebirthButton.TextColor3 = Color3.new(1, 1, 1)
+rebirthButton.Parent = gui
+Instance.new("UICorner", rebirthButton).CornerRadius = UDim.new(0, 10)
+local rebirthPadding = Instance.new("UIPadding")
+rebirthPadding.PaddingLeft = UDim.new(0, 8)
+rebirthPadding.PaddingRight = UDim.new(0, 8)
+rebirthPadding.PaddingTop = UDim.new(0, 6)
+rebirthPadding.PaddingBottom = UDim.new(0, 6)
+rebirthPadding.Parent = rebirthButton
+
+local confirmUntil = 0
+
 local function refresh()
-	moneyLabel.Text = Format.money(player:GetAttribute("Money") or 0)
+	local money = player:GetAttribute("Money") or 0
+	local rebirths = player:GetAttribute("Rebirths") or 0
+	moneyLabel.Text = Format.money(money)
 	incomeLabel.Text = "+" .. Format.money(player:GetAttribute("Income") or 0) .. "/s"
+
+	local cost = GameConfig.rebirthCost(rebirths)
+	local nextBonus = math.floor((GameConfig.rebirthMultiplier(rebirths + 1) - 1) * 100)
+	if os.clock() < confirmUntil then
+		rebirthButton.Text = "Clique de novo para confirmar"
+	else
+		rebirthButton.Text = "Rebirth " .. Format.money(cost) .. " → +" .. nextBonus .. "% renda"
+	end
+	rebirthButton.BackgroundTransparency = if money >= cost then 0 else 0.5
 end
 player:GetAttributeChangedSignal("Money"):Connect(refresh)
 player:GetAttributeChangedSignal("Income"):Connect(refresh)
+player:GetAttributeChangedSignal("Rebirths"):Connect(refresh)
 refresh()
+
+local requestRebirth = Net.event("RequestRebirth")
+rebirthButton.Activated:Connect(function()
+	-- Pede confirmação: o rebirth apaga os carros e o dinheiro.
+	if os.clock() < confirmUntil then
+		confirmUntil = 0
+		requestRebirth:FireServer()
+	else
+		confirmUntil = os.clock() + 3
+		task.delay(3.1, refresh)
+	end
+	refresh()
+end)
 
 -- Notificações (topo da tela)
 local toasts = Instance.new("Frame")

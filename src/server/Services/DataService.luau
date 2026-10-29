@@ -5,6 +5,7 @@
 --   money = number,
 --   slots = number,                          -- vagas liberadas na garagem
 --   cars = { ["1"] = { id = "fuscao", m = "Dourado" }, ... },  -- chave = número da vaga
+--   rebirths = number,
 -- }
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
@@ -26,6 +27,7 @@ local function defaultData()
 		money = GameConfig.StartingMoney,
 		slots = GameConfig.StartingSlots,
 		cars = {},
+		rebirths = 0,
 	}
 end
 
